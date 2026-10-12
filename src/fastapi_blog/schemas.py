@@ -1,4 +1,14 @@
-from pydantic import BaseModel, ConfigDict, Field
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict, Field, EmailStr
+
+class UserBase(BaseModel):
+    pass
+
+class UserCreate(UserBase):
+    pass
+
+class UserResponse(UserBase):
+    pass
 
 class PostBase(BaseModel):
     title: str = Field(min_length=1, max_length=100)
