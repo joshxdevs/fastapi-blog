@@ -19,3 +19,45 @@ A modern, hybrid web application and RESTful API built with **FastAPI**, **SQLAl
 - **Responsive Layout & Theming**: Bootstrap 5 with client-side theme switcher stored in `localStorage`.
 - **Dynamic Asset Handling**: Static assets mounted at `/static` and user-uploaded content mounted at `/media`.
 - **Fast Package Management**: Configured with `uv` and `pyproject.toml` for blazing fast environment management.
+
+## System Architecture & Sequence Diagrams
+### 1. Web Client Request & Server-Side Rendering
+This diagram illustrates how browser clients request pages, how FastAPI resolves database queries via dependencies, and how Jinja2 renders templates or error pages.
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Browser / User
+    participant Router as FastAPI App (main.py)
+    participant Dep as get_db Dependency
+    participant DB as SQLite DB (blog.db)
+    participant Engine as Jinja2 Templates
+    %% Viewing Home Page
+    User->>Router: GET / or /posts
+    activate Router
+    Router->>Dep: Request DB Session
+    Dep-->>Router: Yield SessionLocal
+    Router->>DB: SELECT * FROM posts
+    DB-->>Router: List[Post] + Authors
+    Router->>Engine: Render home.html (posts, title)
+    Engine-->>Router: Compiled HTML String
+    Router-->>User: 200 OK (HTML Page)
+    deactivate Router
+    %% Viewing Single Post (Success & 404 Flow)
+    User->>Router: GET /posts/{post_id}
+    activate Router
+    Router->>Dep: Request DB Session
+    Dep-->>Router: Yield SessionLocal
+    Router->>DB: SELECT * FROM posts WHERE id = post_id
+    alt Post Found
+        DB-->>Router: Post Record
+        Router->>Engine: Render post.html (post, title)
+        Engine-->>Router: Compiled HTML String
+        Router-->>User: 200 OK (HTML Page)
+    else Post Not Found
+        DB-->>Router: None
+        Router->>Router: Raise HTTPException(404)
+        Router->>Engine: Render error.html (status_code=404, message)
+        Engine-->>Router: Error HTML
+        Router-->>User: 404 Not Found (HTML Page)
+    end
+    deactivate Router
