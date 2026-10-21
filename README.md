@@ -61,3 +61,52 @@ sequenceDiagram
         Router-->>User: 404 Not Found (HTML Page)
     end
     deactivate Router
+```
+### 2. REST API Request Lifecycle & Error Handling
+This diagram depicts API clients creating users and publishing posts with validation rules and error routing.
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as API Client / Frontend
+    participant App as FastAPI App
+    participant Schema as Pydantic Validation
+    participant DB as SQLite DB (blog.db)
+    participant Handler as Exception Handlers
+
+    %% User Creation
+    Client->>App: POST /api/users {username, email}
+    activate App
+    App->>Schema: Validate UserCreate schema
+    alt Invalid Payload
+        Schema-->>Handler: RequestValidationError
+        Handler-->>Client: 422 Unprocessable Entity (JSON)
+    else Payload Valid
+        App->>DB: SELECT user WHERE username OR email exists
+        alt Duplicate Username or Email
+            DB-->>App: Existing Record
+            App->>Handler: HTTPException(400, "Username/Email already exists")
+            Handler-->>Client: 400 Bad Request {"detail": "..."}
+        else New User
+            App->>DB: INSERT INTO users ...
+            DB-->>App: New User (id, username, email)
+            App->>Schema: Serialize with UserResponse
+            Schema-->>Client: 201 Created (JSON)
+        end
+    end
+    deactivate App
+
+    %% Post Creation
+    Client->>App: POST /api/posts {title, content, user_id}
+    activate App
+    App->>DB: SELECT user WHERE id = user_id
+    alt Author Not Found
+        DB-->>App: None
+        App->>Handler: HTTPException(404, "User not found")
+        Handler-->>Client: 404 Not Found {"detail": "User not found"}
+    else Author Exists
+        App->>DB: INSERT INTO posts ...
+        DB-->>App: New Post (id, date_posted, user_id)
+        App->>Schema: Serialize with PostResponse
+        Schema-->>Client: 201 Created (JSON)
+    end
+    deactivate App
